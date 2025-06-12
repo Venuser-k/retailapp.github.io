@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Retail Profit Calculator</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #f9f9f9;
+      padding: 2rem;
+      color: #333;
+    }
+    .container {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 2rem;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      border-radius: 10px;
+    }
+    h1, h2 {
+      text-align: center;
+      color: #007BFF;
+    }
+    label {
+      display: block;
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    input, select {
+      width: 100%;
+      padding: 0.5rem;
+      margin-top: 0.5rem;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      margin-top: 1.5rem;
+      width: 100%;
+      padding: 0.75rem;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .result {
+      margin-top: 2rem;
+      background-color: #f0f8ff;
+      padding: 1rem;
+      border-radius: 5px;
+    }
+    #adminOnly {
+      display: none;
+    }
+    .adminData {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container" id="loginBox">
+    <h1>Login</h1>
+    <label>Enter Password</label>
+    <input type="password" id="accessPassword" placeholder="Enter password">
+    <button onclick="checkLogin()">Enter</button>
+  </div>
+
+  <div class="container" id="calculatorBox" style="display:none">
+    <h2 id="roleTitle">Retail Profit Calculator</h2>
+
+    <div id="adminOnly">
+      <label>Add New Product</label>
+      <input type="text" id="newName" placeholder="Product Name">
+      <input type="number" id="newPrice" placeholder="Purchase Price (Incl. GST)">
+      <input type="number" id="newGST" placeholder="Purchase GST %">
+      <input type="number" id="newProfit" placeholder="Profit Margin %">
+      <input type="number" id="newSellGST" placeholder="Selling GST %">
+      <button onclick="addProduct()">Add Product</button>
+    </div>
+
+    <label>Select Product</label>
+    <select id="productSelect" onchange="fillProduct()">
+      <option value="">-- Select Product --</option>
+    </select>
+
+    <div class="result" id="productSummary" style="display:none">
+      <p><strong>Expected Selling Price:</strong> ₹<span id="expectedPrice"></span></p>
+    </div>
+
+    <div id="userInputs">
+      <label>Bargain Price (Incl. GST)</label>
+      <input type="number" id="bargainPrice" placeholder="e.g. 10500">
+      <button onclick="evaluateBargain()">Check Profit</button>
+    </div>
+
+    <div class="result" id="result" style="display:none">
+      <div class="adminData">
+        <p><strong>Base Cost:</strong> ₹<span id="baseCost"></span></p>
+        <p><strong>Selling Price (Excl. GST):</strong> ₹<span id="sellingExcl"></span></p>
+        <p><strong>Final Invoice:</strong> ₹<span id="finalInvoice"></span></p>
+        <p><strong>Your Profit:</strong> ₹<span id="profit"></span></p>
+        <p><strong>Profit After Selling GST:</strong> ₹<span id="netProfit"></span></p>
+      </div>
+      <p id="statusMsg" style="font-weight:bold"></p>
+    </div>
+  </div>
+
+  <script>
+    const adminPass = "admin123";
+    const userPass = "user123";
+    let userRole = "";
+
+    const products = JSON.parse(localStorage.getItem("products")) || {
+      "32 inch TV": { price: 9800, gst: 18, profit: 15, sellGST: 18 },
+      "Washing Machine": { price: 15900, gst: 18, profit: 20, sellGST: 18 }
+    };
+
+    function saveProducts() {
+      localStorage.setItem("products", JSON.stringify(products));
+    }
+
+    function checkLogin() {
+      const input = document.getElementById("accessPassword").value;
+      if (input === adminPass) {
+        userRole = "admin";
+        document.getElementById("roleTitle").innerText = "Admin Panel";
+        document.getElementById("adminOnly").style.display = "block";
+        document.querySelector(".adminData").style.display = "block";
+        loadProducts();
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("calculatorBox").style.display = "block";
+      } else if (input === userPass) {
+        userRole = "user";
+        document.getElementById("roleTitle").innerText = "User Mode";
+        document.querySelector(".adminData").style.display = "none";
+        loadProducts();
+        document.getElementById("loginBox").style.display = "none";
+        document.getElementById("calculatorBox").style.display = "block";
+      } else {
+        alert("Incorrect password");
+      }
+    }
+
+    function loadProducts() {
+      const dropdown = document.getElementById("productSelect");
+      dropdown.innerHTML = '<option value="">-- Select Product --</option>';
+      for (let name in products) {
+        const option = document.createElement("option");
+        option.value = name;
+        option.text = name;
+        dropdown.add(option);
+      }
+    }
+
+    function fillProduct() {
+      document.getElementById("result").style.display = "none";
+      document.getElementById("productSummary").style.display = "none";
+      document.getElementById("bargainPrice").value = "";
+
+      const productName = document.getElementById("productSelect").value;
+      if (!productName) return;
+
+      const product = products[productName];
+      const baseCost = product.price / (1 + product.gst / 100);
+      const profitAmount = baseCost * (product.profit / 100);
+      const sellingExcl = baseCost + profitAmount;
+      const expectedFinal = sellingExcl * (1 + product.sellGST / 100);
+
+      document.getElementById("expectedPrice").innerText = expectedFinal.toFixed(2);
+      document.getElementById("productSummary").style.display = "block";
+    }
+
+    function evaluateBargain() {
+      const productName = document.getElementById("productSelect").value;
+      const enteredPrice = parseFloat(document.getElementById("bargainPrice").value);
+      if (!products[productName] || !enteredPrice) {
+        alert("Please select product and enter price");
+        return;
+      }
+
+      const product = products[productName];
+      const baseCost = product.price / (1 + product.gst / 100);
+      const finalSellingExcl = enteredPrice / (1 + product.sellGST / 100);
+      const profit = finalSellingExcl - baseCost;
+      const taxAmount = enteredPrice - finalSellingExcl;
+      const netProfit = profit;
+
+      if (userRole === "admin") {
+        document.getElementById("baseCost").innerText = baseCost.toFixed(2);
+        document.getElementById("sellingExcl").innerText = finalSellingExcl.toFixed(2);
+        document.getElementById("finalInvoice").innerText = enteredPrice.toFixed(2);
+        document.getElementById("profit").innerText = profit.toFixed(2);
+        document.getElementById("netProfit").innerText = netProfit.toFixed(2);
+      }
+
+      document.getElementById("result").style.display = 'block';
+
+      if (profit >= 500) {
+        document.getElementById("statusMsg").innerText = userRole === "admin" ? "✅ Allowed (Profit ≥ ₹500)" : "✅ Allowed";
+        document.getElementById("statusMsg").style.color = "green";
+      } else {
+        document.getElementById("statusMsg").innerText = userRole === "admin" ? "❌ Not Allowed (Profit < ₹500)" : "❌ Not Allowed";
+        document.getElementById("statusMsg").style.color = "red";
+      }
+    }
+
+    function addProduct() {
+      const name = document.getElementById("newName").value.trim();
+      const price = parseFloat(document.getElementById("newPrice").value);
+      const gst = parseFloat(document.getElementById("newGST").value);
+      const profit = parseFloat(document.getElementById("newProfit").value);
+      const sellGST = parseFloat(document.getElementById("newSellGST").value);
+
+      if (name && price && gst && profit && sellGST) {
+        products[name] = { price, gst, profit, sellGST };
+        saveProducts();
+        loadProducts();
+        alert("Product added successfully!");
+        document.getElementById("newName").value = "";
+        document.getElementById("newPrice").value = "";
+        document.getElementById("newGST").value = "";
+        document.getElementById("newProfit").value = "";
+        document.getElementById("newSellGST").value = "";
+      } else {
+        alert("Please fill all product fields");
+      }
+    }
+  </script>
+</body>
+</html>
